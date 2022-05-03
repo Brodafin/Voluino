@@ -1,0 +1,69 @@
+// Arduino XC9104S Based Volume Pedal -  Version 3 (April 28th, 2022)
+// Author: Brodafin.  Authorized for personal use by the YouTube community
+// XC9104S pinouts (from upper left, counter clockwise):
+// 1: Vcc (Connect to Nano's +5vDC for this application)
+// 2: Ground (Connect to Nano's Ground for this application)
+// 3: INC* (* indicates active low)
+// 4: U/D* (count Up or Down*)
+// 5: CS* (Chip Select*)
+// 6: Ground
+// 7: Rl (Low end of internal resistor string)
+// 8: Rw (Wiper connection of resistor string)
+// 9: Rh (High end of internal resistor string)
+// 10: Additional Vcc Connection
+// ******************************************************** Variables Declaration
+int cnt = 1;                                        // Used to calculate modulus to blink LEDs
+int ttl = 25;                                       // Used to simulate log Volume taper
+int flg = 1;                                        // Used to identify Louder or Softer mode
+int dly;                                            // Also used for log Volume taper
+//********************************************************* Setup Loop
+void setup() {                                      // Start Setup
+ pinMode (2, OUTPUT);                               // U/D* of XC9104S
+ pinMode (3, OUTPUT);                               // INC* of XC9104S
+ pinMode (4, OUTPUT);                               // Louder LED
+ pinMode (5, OUTPUT);                               // Not used
+ pinMode (6, OUTPUT);                               // Softer LED
+ pinMode (7, INPUT_PULLUP);                         // Louder Switch
+ pinMode (8, INPUT_PULLUP);                         // Softer Switch
+ digitalWrite(2,LOW); delay(10);                    // Select Down* on XC9104S
+ for (int i =1;i<101;i++){                          // Clock all the way down 
+  digitalWrite(3,LOW);digitalWrite(3,HIGH);         // to initialize to known (volume off) state                                             
+ }                                                  // End FOR
+ digitalWrite(4,HIGH);digitalWrite(6,HIGH);         // Initialize both LEDs                                                                                         
+}                                                   // End SETUP Loop
+//******************************************************** Main Execution Loop
+void loop() {                                       // Execution Begins
+ if(digitalRead(7)==LOW) {                          // If Louder switch pressed                     
+    digitalWrite(2,HIGH); delay(10); flg = 1;       // Select Up on XC9104S. flg to 1
+    digitalWrite(6, LOW);                          // Turn off Softer LED (LED between V+ and pin 6)
+    pulsR();                                        // Call pulsR function
+ } else if (digitalRead(8) == LOW) {                // Otherwise, if Softer switch pressed,
+    digitalWrite(2,LOW); delay(10); flg = -1;       // Select Down* on XC9104S.  flg to -1
+    digitalWrite(4, LOW);                          // Turn off Louder LED (Ditto)
+    pulsR();                                        // Call pulsR function
+ } else{                                            // If no switch pressed, energize
+  digitalWrite(5-flg, HIGH);                         // LED associated with previous switch press
+ }                                                  // End IF
+}                                                   // End main execution LOOP
+//********************************************************* Functions    
+void pulsR() {                                      // pulsR Function
+  if (ttl <45) {                                    // Count Less than 45 decrements
+    dly = 110;                                      // slower to simulate log function
+  } else {                                          // Greater than 45 increments 
+     dly = 10;                                      // quickly again simulating log fn.
+  }                                                 // End IF
+  digitalWrite(3, LOW); delay(dly);                 // Clock XC9104S Low 
+  digitalWrite(3, HIGH); delay(10);                 // Clock XC9104S High 
+  cnt=cnt+1; ttl = ttl + flg;                       // Cnt to calculate modulus; ttl is total clocks
+  if (ttl == 60){                                   // High end of audible volume change is 60
+    ttl = 59;                                       // Keep it there while LOUDER switch pressed
+    digitalWrite(5-flg, HIGH);                      //Keep Louder LED on
+  } else if (ttl == 30) {                           // Low end of audible volume change is 30
+    ttl = 31;                                       // Keep it there while SOFTER switch pressed
+    digitalWrite(5-flg, HIGH);                      // Keep Softer LED on           
+  } else {                                          // If not reached either volume extreme,
+    cnt %= 2;                                       // calculate modulus
+  }                                                 // End IF
+ if (cnt == 0){ digitalWrite(5-flg, LOW); }         // and then use it to 
+   if (cnt == 1){ digitalWrite(5-flg, HIGH); }      // blink corresponding LED
+}                                                   // End pulsR Function
